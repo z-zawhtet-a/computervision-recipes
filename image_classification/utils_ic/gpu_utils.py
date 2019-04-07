@@ -4,6 +4,8 @@
 import subprocess
 import warnings
 
+from torch.cuda import get_device_name, is_available
+
 
 def gpu_info():
     """Get information of GPUs.
@@ -34,6 +36,17 @@ def gpu_info():
     except subprocess.CalledProcessError as e:
         warnings.warn(e.stdout)
     except FileNotFoundError:
-        warnings.warn("nvidia-smi is not available.")
+        warnings.warn("GPU info is not available.")
 
     return gpus
+
+
+def which_processor():
+    """Check if fastai/torch is using GPU or CPU"""
+    if is_available():
+        print(f"Fast.ai (Torch) is using GPU: {get_device_name(0)}")
+        gpus = gpu_info()
+        free = int(gpus['total_memory']) - int(gpus['used_memory'])
+        print(f"Available / Total memory = {free} / {gpus['total_memory']}")
+    else:
+        print("Cuda is not available. Fast.ai/Torch is using CPU")
