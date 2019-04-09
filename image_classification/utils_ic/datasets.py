@@ -78,8 +78,11 @@ def unzip_url(
         if not exist_ok:
             raise FileExistsError(path, "Use param {{exist_ok}} to ignore.")
 
-    assert os.path.exists(fpath)
-    assert os.path.exists(dest)
+    # make dir if not exist
+    if not Path(fpath).is_dir():
+        os.makedirs(fpath)
+    if not Path(dest).is_dir():
+        os.makedirs(dest)
 
     fname = _get_file_name(url)
     fname_without_extension = fname.split(".")[0]
@@ -103,7 +106,7 @@ def unzip_url(
         z.extractall(fpath)
         z.close()
 
-    return os.path.realpath(os.path.join(fpath, fname_without_extension))
+    return Path(os.path.realpath(os.path.join(fpath, fname_without_extension)))
 
 
 def unzip_urls(

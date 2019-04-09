@@ -21,7 +21,7 @@ from torch import Tensor
 class TrainMetricsRecorder(LearnerCallback):
     _order = -20  # Needs to run before the recorder
 
-    def __init__(self, learn, n_batch: int = None, show_graph: bool = False):
+    def __init__(self, learn, n_batch: int = None, show_graph: bool = False, silent: bool = False):
         """Fastai Train hook to evaluate metrics on train and validation set for every epoch.
 
         This class works with the metrics functions whose signature is fn(input:Tensor, targs:Tensor),
@@ -33,10 +33,11 @@ class TrainMetricsRecorder(LearnerCallback):
         TrainMetricsRecorder, on the other hand, records the metrics on the training set and plot them as well.
 
         Arguments:
+            learn (Learner): Fastai Learner object
             n_batch (int): Number of train batches to use when evaluate metrics on the training set.
                 If None, use all the training set which will take longer time.
-            show_graph (bool): If True, draw metrics after each epoch. If multiple metrics have set,
-                it draws only the first metrics graph.
+            show_graph (bool): If True, draw metrics after each epoch.
+            silent (bool): If True, does not show the result table and graphs.
 
         Examples:
             >>> learn = cnn_learner(data, model, metrics=[accuracy])
@@ -65,6 +66,7 @@ class TrainMetricsRecorder(LearnerCallback):
 
         self.n_batch = n_batch
         self.show_graph = show_graph
+        self.silent = silent
 
     def on_train_begin(
         self, pbar: PBar, metrics: List, n_epochs: int, **kwargs: Any
@@ -72,14 +74,15 @@ class TrainMetricsRecorder(LearnerCallback):
         self.has_metrics = metrics and len(metrics) > 0
         self.has_val = hasattr(self.learn.data, 'valid_ds')
 
+        # Mute recorder. This callback will printout results instead.
+        self.learn.recorder.silent = True
+
         # Result table and graph variables
-        self.learn.recorder.silent = (
-            True
-        )  # Mute recorder. This callback will printout results instead.
         self.pbar = pbar
         self.names = ['epoch', 'train_loss']
         if self.has_val:
             self.names.append('valid_loss')
+
         # Add metrics names
         self.metrics_names = [m_fn.__name__ for m_fn in metrics]
         for m in self.metrics_names:
@@ -87,7 +90,9 @@ class TrainMetricsRecorder(LearnerCallback):
             if self.has_val:
                 self.names.append('valid_' + m)
         self.names.append('time')
-        self.pbar.write(self.names, table=True)
+
+        if not self.silent:
+            self.pbar.write(self.names, table=True)
 
         self.n_epochs = n_epochs
         self.valid_metrics = []
@@ -147,11 +152,12 @@ class TrainMetricsRecorder(LearnerCallback):
                     stats.append(vl_lm[i])
 
         # Write to result table
-        self._format_stats(stats)
+        if not self.silent:
+            self._format_stats(stats)
 
-        # Plot (update) metrics for every end of epoch
-        if self.show_graph and len(self.train_metrics) > 0:
-            self.plot()
+            # Plot (update) metrics for every end of epoch
+            if self.show_graph and len(self.train_metrics) > 0:
+                self.plot()
 
     def _format_stats(self, stats: TensorOrNumList) -> None:
         """Format stats before printing. Note, this does the same thing as Recorder's"""
@@ -221,3 +227,11 @@ class TrainMetricsRecorder(LearnerCallback):
 
         plt.close()  # close plot windows. Otherwise two figures are shown at the end
         self.graphs.update(self.fig)
+
+    def last_train_metrics(self):
+        """Train set metrics from the last epoch"""
+        return self.train_metrics[-1]
+
+    def last_valid_metrics(self):
+        """Validation set metrics from the last epoch"""
+        return self.valid_metrics[-1]
