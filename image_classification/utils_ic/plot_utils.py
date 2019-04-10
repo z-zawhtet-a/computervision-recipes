@@ -78,6 +78,11 @@ def plot_roc_curve(
 
     # Plot ROC curve
     if len(y_score.shape) == 2:
+        y_true = label_binarize(y_true, classes=list(range(len(classes))))
+        # If y_score is 2-dim on a binary-class problem, we manually convert y_true to be 2-dim
+        if y_true.shape[1] == 1:
+            y_true = np.hstack((y_true, 1 - y_true))
+            
         _plot_multi_roc_curve(y_true, y_score, classes)
     else:
         _plot_roc_curve(y_true, y_score)
@@ -94,8 +99,6 @@ def plot_roc_curve(
 
 
 def _plot_multi_roc_curve(y_true, y_score, classes):
-    y_true = label_binarize(y_true, classes=list(range(len(classes))))
-
     # Plot ROC for each class
     for i in range(len(classes)):
         _plot_roc_curve(y_true[:, i], y_score[:, i], classes[i])
@@ -149,6 +152,11 @@ def plot_precision_recall_curve(
     np.random.seed(123)
 
     if len(y_score.shape) == 2:
+        y_true = label_binarize(y_true, classes=list(range(len(classes))))
+        # If y_score is 2-dim on a binary-class problem, we manually convert y_true to be 2-dim
+        if y_true.shape[1] == 1:
+            y_true = np.hstack((y_true, 1 - y_true))
+
         _plot_multi_precision_recall_curve(y_true, y_score, classes)
     else:
         _plot_precision_recall_curve(
@@ -167,8 +175,6 @@ def plot_precision_recall_curve(
 
 
 def _plot_multi_precision_recall_curve(y_true, y_score, classes):
-    y_true = label_binarize(y_true, classes=list(range(len(classes))))
-
     # Plot PR for each class
     for i in range(len(classes)):
         _plot_precision_recall_curve(
