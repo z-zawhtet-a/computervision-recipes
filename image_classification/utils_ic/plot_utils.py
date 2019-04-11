@@ -82,7 +82,7 @@ def plot_roc_curve(
         # If y_score is 2-dim on a binary-class problem, we manually convert y_true to be 2-dim
         if y_true.shape[1] == 1:
             y_true = np.hstack((y_true, 1 - y_true))
-            
+
         _plot_multi_roc_curve(y_true, y_score, classes)
     else:
         _plot_roc_curve(y_true, y_score)
@@ -100,8 +100,9 @@ def plot_roc_curve(
 
 def _plot_multi_roc_curve(y_true, y_score, classes):
     # Plot ROC for each class
-    for i in range(len(classes)):
-        _plot_roc_curve(y_true[:, i], y_score[:, i], classes[i])
+    if len(classes) > 2:
+        for i in range(len(classes)):
+            _plot_roc_curve(y_true[:, i], y_score[:, i], classes[i])
 
     # Compute micro-average ROC curve and ROC area
     _plot_roc_curve(y_true.ravel(), y_score.ravel(), "avg")
@@ -176,13 +177,14 @@ def plot_precision_recall_curve(
 
 def _plot_multi_precision_recall_curve(y_true, y_score, classes):
     # Plot PR for each class
-    for i in range(len(classes)):
-        _plot_precision_recall_curve(
-            y_true[:, i],
-            y_score[:, i],
-            average_precision_score(y_true[:, i], y_score[:, i]),
-            classes[i],
-        )
+    if len(classes) > 2:
+        for i in range(len(classes)):
+            _plot_precision_recall_curve(
+                y_true[:, i],
+                y_score[:, i],
+                average_precision_score(y_true[:, i], y_score[:, i]),
+                classes[i],
+            )
 
     # Plot averaged PR. A micro-average is used
     _plot_precision_recall_curve(
