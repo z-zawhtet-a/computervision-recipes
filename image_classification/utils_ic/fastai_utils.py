@@ -21,7 +21,7 @@ from torch import Tensor
 class TrainMetricsRecorder(LearnerCallback):
     _order = -20  # Needs to run before the recorder
 
-    def __init__(self, learn, n_batch: int = None, show_graph: bool = False, silent: bool = False):
+    def __init__(self, learn, n_batch: int = None, show_graph: bool = False):
         """Fastai Train hook to evaluate metrics on train and validation set for every epoch.
 
         This class works with the metrics functions whose signature is fn(input:Tensor, targs:Tensor),
@@ -33,11 +33,10 @@ class TrainMetricsRecorder(LearnerCallback):
         TrainMetricsRecorder, on the other hand, records the metrics on the training set and plot them as well.
 
         Arguments:
-            learn (Learner): Fastai Learner object
             n_batch (int): Number of train batches to use when evaluate metrics on the training set.
                 If None, use all the training set which will take longer time.
-            show_graph (bool): If True, draw metrics after each epoch.
-            silent (bool): If True, does not show the result table and graphs.
+            show_graph (bool): If True, draw metrics after each epoch. If multiple metrics have set,
+                it draws only the first metrics graph.
 
         Examples:
             >>> learn = cnn_learner(data, model, metrics=[accuracy])
@@ -66,7 +65,6 @@ class TrainMetricsRecorder(LearnerCallback):
 
         self.n_batch = n_batch
         self.show_graph = show_graph
-        self.silent = silent
 
     def on_train_begin(
         self, pbar: PBar, metrics: List, n_epochs: int, **kwargs: Any
@@ -74,15 +72,14 @@ class TrainMetricsRecorder(LearnerCallback):
         self.has_metrics = metrics and len(metrics) > 0
         self.has_val = hasattr(self.learn.data, 'valid_ds')
 
-        # Mute recorder. This callback will printout results instead.
-        self.learn.recorder.silent = True
-
         # Result table and graph variables
+        self.learn.recorder.silent = (
+            True
+        )  # Mute recorder. This callback will printout results instead.
         self.pbar = pbar
         self.names = ['epoch', 'train_loss']
         if self.has_val:
             self.names.append('valid_loss')
-
         # Add metrics names
         self.metrics_names = [m_fn.__name__ for m_fn in metrics]
         for m in self.metrics_names:
@@ -90,9 +87,7 @@ class TrainMetricsRecorder(LearnerCallback):
             if self.has_val:
                 self.names.append('valid_' + m)
         self.names.append('time')
-
-        if not self.silent:
-            self.pbar.write(self.names, table=True)
+        self.pbar.write(self.names, table=True)
 
         self.n_epochs = n_epochs
         self.valid_metrics = []
@@ -152,12 +147,11 @@ class TrainMetricsRecorder(LearnerCallback):
                     stats.append(vl_lm[i])
 
         # Write to result table
-        if not self.silent:
-            self._format_stats(stats)
+        self._format_stats(stats)
 
-            # Plot (update) metrics for every end of epoch
-            if self.show_graph and len(self.train_metrics) > 0:
-                self.plot()
+        # Plot (update) metrics for every end of epoch
+        if self.show_graph and len(self.train_metrics) > 0:
+            self._plot(True)
 
     def _format_stats(self, stats: TensorOrNumList) -> None:
         """Format stats before printing. Note, this does the same thing as Recorder's"""
@@ -173,31 +167,24 @@ class TrainMetricsRecorder(LearnerCallback):
         str_stats.append(format_time(time() - self.start_epoch))
         self.pbar.write(str_stats, table=True)
 
-    def plot(self):
-        """Plot metrics graph"""
-        if len(self.train_metrics) == 0:
-            raise ValueError("No records to plot.")
-
-        # Number of metrics on training set and validation set should be the same
-        if len(self.valid_metrics) > 0:
-            assert len(self.train_metrics[0]) == len(self.valid_metrics[0])
-
+    def _plot(self, update=False):
         # init graph
-        if not hasattr(self, 'fig'):
-            self.fig, self.axes = plt.subplots(
+        if not hasattr(self, '_fig'):
+            self._fig, self._axes = plt.subplots(
                 len(self.train_metrics[0]),
                 1,
                 figsize=(6, 4 * len(self.train_metrics[0])),
             )
-            self.axes = (
-                self.axes.flatten()
+            self._axes = (
+                self._axes.flatten()
                 if len(self.train_metrics[0]) > 1
-                else [self.axes]
+                else [self._axes]
             )
-            self.graphs = display(self.fig, display_id=True)
+            self._display = display(self._fig, display_id=True)
+            plt.close(self._fig)
 
         # Plot each metrics as a subplot
-        for i, ax in enumerate(self.axes):
+        for i, ax in enumerate(self._axes):
             ax.clear()
 
             # Plot training set results
@@ -206,16 +193,16 @@ class TrainMetricsRecorder(LearnerCallback):
             ax.plot(x_axis, tr_m, label="Train")
 
             # Plot validation set results
+            maybe_y_bounds = [-0.05, 1.05, min(Tensor(tr_m)), max(Tensor(tr_m))]
             if len(self.valid_metrics) > 0:
                 vl_m = [met[i] for met in self.valid_metrics]
                 ax.plot(x_axis, vl_m, label="Validation")
-            else:
-                vl_m = []
+                maybe_y_bounds.extend([min(Tensor(vl_m)), max(Tensor(vl_m))])
 
             x_bounds = (-0.05, self.n_epochs - 0.95)
             y_bounds = (
-                min(-0.05, min(Tensor(tr_m)), min(Tensor(vl_m))) - 0.05,
-                max(1.05, max(Tensor(tr_m)), max(Tensor(vl_m))) + 0.05,
+                min(maybe_y_bounds) - 0.05,
+                max(maybe_y_bounds) + 0.05,
             )
             ax.set_xlim(x_bounds)
             ax.set_ylim(y_bounds)
@@ -225,8 +212,20 @@ class TrainMetricsRecorder(LearnerCallback):
             ax.xaxis.set_major_locator(MaxNLocator(integer=True))
             ax.legend(loc='upper right')
 
-        plt.close()  # close plot windows. Otherwise two figures are shown at the end
-        self.graphs.update(self.fig)
+        if update:
+            self._display.update(self._fig)
+
+    def plot(self):
+        """Plot metrics graph"""
+        if len(self.train_metrics) == 0:
+            raise ValueError("No records to plot.")
+
+        # Number of metrics on training set and validation set should be the same
+        if len(self.valid_metrics) > 0:
+            assert len(self.train_metrics[0]) == len(self.valid_metrics[0])
+
+        self._plot()
+        display(self._fig)
 
     def last_train_metrics(self):
         """Train set metrics from the last epoch"""
@@ -235,3 +234,4 @@ class TrainMetricsRecorder(LearnerCallback):
     def last_valid_metrics(self):
         """Validation set metrics from the last epoch"""
         return self.valid_metrics[-1]
+
