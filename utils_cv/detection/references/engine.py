@@ -69,7 +69,7 @@ def _get_iou_types(model):
 
 @torch.no_grad()
 def evaluate(model, data_loader, device):
-    n_threads = torch.get_num_threads()
+    n_threads = 1 #torch.get_num_threads()
     # FIXME remove this and make paste_masks_in_image run on the GPU
     torch.set_num_threads(1)
     cpu_device = torch.device("cpu")
@@ -90,6 +90,34 @@ def evaluate(model, data_loader, device):
         outputs = model(image)
 
         outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs]
+
+
+        # only keep some detections
+        new_outputs = []
+        for output in outputs:
+            new_output = {}
+            new_output['labels'] = []
+            new_output['scores'] = []
+            new_output['boxes'] = []
+
+            labels = output['labels']
+            scores = output['scores']
+            boxes = output['boxes']
+
+            for i in range(len(labels)):
+                if labels[i] == 1:
+                    new_output['labels'].append(0) #int(labels[i]))
+                    new_output['scores'].append(float(scores[i]))
+                    new_output['boxes'].append([float(f) for f in boxes[i]])  # boxes[i])
+
+            new_output['labels'] = torch.tensor(new_output['labels'])
+            new_output['scores'] = torch.tensor(new_output['scores'])
+            new_output['boxes'] = torch.tensor(new_output['boxes'])
+
+            new_outputs.append(new_output)
+        outputs = new_outputs
+
+
         model_time = time.time() - model_time
 
         res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}

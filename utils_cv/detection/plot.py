@@ -131,7 +131,7 @@ def plot_boxes(
                 continue
 
             # show detection score in rectangle label
-            bbox_text = bbox.label_name
+            bbox_text = "" #bbox.label_name
             if type(bbox) is DetectionBbox:
                 bbox_text += " ({:0.2f})".format(bbox.score)
 
@@ -144,6 +144,8 @@ def plot_boxes(
                 plot_settings.rect_color
                 or plot_settings.get_colors(bbox.label_idx)[1]
             )
+
+            #rect_color = plot_settings.get_colors(np.random.randint(0,100))[0]
 
             # draw rect
             box = [(bbox.left, bbox.top), (bbox.right, bbox.bottom)]
@@ -285,8 +287,8 @@ def plot_detections(
 
     # Adjust the rectangle thickness etc. to the image resolution
     scale = max(im.size) / 500.0
-    rect_th = int(PlotSettings().rect_th * scale)
-    text_size = int(PlotSettings().text_size * scale)
+    rect_th = 2 #int(PlotSettings().rect_th * scale)
+    text_size = 20 #int(PlotSettings().text_size * scale * 0.2)
     keypoint_th = int(PlotSettings().keypoint_th * scale)
 
     # Get id of ground truth image/annotation

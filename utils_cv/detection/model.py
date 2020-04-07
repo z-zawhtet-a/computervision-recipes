@@ -413,6 +413,26 @@ def ims_eval_detections(
     )
 
 
+# Remove detections which are not of a given label(s)
+def filter_detections(detections, filter_labels):
+    import copy
+    new_detections = []
+    for detection in detections:
+
+        # copy content from all other keys except det_bboxes
+        new_detection = copy.deepcopy(detection)
+        new_detection['det_bboxes'] = []
+
+        # copy det_bboxes of the selected class(es)
+        for det_bbox in detection['det_bboxes']:
+            if det_bbox.label_name in filter_labels:
+                new_detection['det_bboxes'].append(det_bbox)
+
+        new_detections.append(new_detection)
+
+    return new_detections
+
+
 class DetectionLearner:
     """ Detection Learner for Object Detection"""
 
