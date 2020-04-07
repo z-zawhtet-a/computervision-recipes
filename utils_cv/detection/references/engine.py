@@ -106,7 +106,7 @@ def evaluate(model, data_loader, device):
 
             for i in range(len(labels)):
                 if labels[i] == 1:
-                    new_output['labels'].append(0) #int(labels[i]))
+                    new_output['labels'].append(int(labels[i]))
                     new_output['scores'].append(float(scores[i]))
                     new_output['boxes'].append([float(f) for f in boxes[i]])  # boxes[i])
 
