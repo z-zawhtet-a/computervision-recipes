@@ -315,7 +315,7 @@ class VideoDataset:
             self.train_ds,
             batch_size=self.batch_size * devices,
             shuffle=True,
-            num_workers=0,  # Torch 1.2 has a bug when num-workers > 0 (0 means run a main-processor worker)
+            num_workers=4,  # Torch 1.2 has a bug when num-workers > 0 (0 means run a main-processor worker)
             pin_memory=True,
         )
 
@@ -323,7 +323,7 @@ class VideoDataset:
             self.test_ds,
             batch_size=self.batch_size * devices,
             shuffle=False,
-            num_workers=0,
+            num_workers=4,
             pin_memory=True,
         )
 
